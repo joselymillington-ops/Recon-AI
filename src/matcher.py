@@ -14,6 +14,7 @@ def reconcile_transactions(
     1. Amounts must be within the allowed tolerance.
     2. Dates may differ by up to the allowed number of days.
     3. Each ledger transaction can only be matched once.
+    4. Unmatched items receive a discrepancy reason.
     """
 
     bank_df = bank_df.copy()
@@ -29,6 +30,9 @@ def reconcile_transactions(
         best_match_index = None
         best_date_difference = None
 
+        closest_amount_difference = None
+        closest_date_difference = None
+
         for ledger_index, ledger_row in ledger_df.iterrows():
             if ledger_index in matched_ledger_indices:
                 continue
@@ -40,6 +44,18 @@ def reconcile_transactions(
             date_difference = abs(
                 (bank_row["date"] - ledger_row["date"]).days
             )
+
+            if (
+                closest_amount_difference is None
+                or amount_difference < closest_amount_difference
+            ):
+                closest_amount_difference = amount_difference
+
+            if (
+                closest_date_difference is None
+                or date_difference < closest_date_difference
+            ):
+                closest_date_difference = date_difference
 
             if (
                 amount_difference <= amount_tolerance
@@ -64,6 +80,7 @@ def reconcile_transactions(
                     "bank_reference": bank_row["reference"],
                     "ledger_reference": ledger_match["reference"],
                     "status": "Matched",
+                    "discrepancy_reason": None,
                     "date_difference_days": best_date_difference,
                     "amount_difference": abs(
                         bank_row["amount"] - ledger_match["amount"]
@@ -72,6 +89,15 @@ def reconcile_transactions(
             )
 
         else:
+            if closest_amount_difference is None:
+                discrepancy_reason = "Possible missing ledger entry"
+            elif closest_amount_difference > amount_tolerance:
+                discrepancy_reason = "Amount mismatch"
+            elif closest_date_difference > date_tolerance_days:
+                discrepancy_reason = "Date outside tolerance"
+            else:
+                discrepancy_reason = "Possible duplicate or unmatched item"
+
             results.append(
                 {
                     "date": bank_row["date"].date(),
@@ -80,8 +106,9 @@ def reconcile_transactions(
                     "bank_reference": bank_row["reference"],
                     "ledger_reference": None,
                     "status": "Unmatched",
-                    "date_difference_days": None,
-                    "amount_difference": None,
+                    "discrepancy_reason": discrepancy_reason,
+                    "date_difference_days": closest_date_difference,
+                    "amount_difference": closest_amount_difference,
                 }
             )
 
