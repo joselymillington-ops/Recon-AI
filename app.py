@@ -54,3 +54,25 @@ if bank_file is not None and ledger_file is not None:
 
     with metric2:
         st.metric("Unmatched Transactions", unmatched_count)
+
+    st.subheader("Discrepancy Analysis")
+
+    unmatched_results = results[results["status"] == "Unmatched"]
+
+    if unmatched_results.empty:
+        st.success("No discrepancies found.")
+    else:
+        st.dataframe(
+            unmatched_results[
+                [
+                    "date",
+                    "description",
+                    "amount",
+                    "bank_reference",
+                    "discrepancy_reason",
+                    "date_difference_days",
+                    "amount_difference",
+                ]
+            ],
+            use_container_width=True,
+        )
