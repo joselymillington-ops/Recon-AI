@@ -65,3 +65,31 @@ def test_matches_transactions_within_date_tolerance():
 
     assert results.iloc[0]["status"] == "Matched"
     assert results.iloc[0]["date_difference_days"] == 2
+
+def test_matches_transactions_within_amount_tolerance():
+    bank_df = pd.DataFrame(
+        {
+            "date": ["2026-08-15"],
+            "description": ["Vendor Payment"],
+            "amount": [-500.00],
+            "reference": ["BANK002"],
+        }
+    )
+
+    ledger_df = pd.DataFrame(
+        {
+            "date": ["2026-08-15"],
+            "description": ["Vendor Payment"],
+            "amount": [-500.01],
+            "reference": ["LEDGER002"],
+        }
+    )
+
+    results = reconcile_transactions(
+        bank_df,
+        ledger_df,
+        amount_tolerance=0.01,
+    )
+
+    assert results.iloc[0]["status"] == "Matched"
+    assert round(results.iloc[0]["amount_difference"], 2) == 0.01
