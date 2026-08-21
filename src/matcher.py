@@ -89,14 +89,47 @@ def reconcile_transactions(
             )
 
         else:
-            if closest_amount_difference is None:
-                discrepancy_reason = "Possible missing ledger entry"
-            elif closest_amount_difference > amount_tolerance:
+            same_date_candidates = ledger_df[
+                ledger_df["date"] == bank_row["date"]
+            ]
+
+            same_amount_candidates = ledger_df[
+                (
+                    ledger_df["amount"] - bank_row["amount"]
+                ).abs() <= amount_tolerance
+            ]
+
+            if not same_date_candidates.empty:
+                closest_same_date_amount_difference = (
+                    same_date_candidates["amount"] - bank_row["amount"]
+                ).abs().min()
+
                 discrepancy_reason = "Amount mismatch"
-            elif closest_date_difference > date_tolerance_days:
+
+                closest_amount_difference = (
+                    closest_same_date_amount_difference
+                )
+
+                closest_date_difference = 0
+
+            elif not same_amount_candidates.empty:
+                closest_same_amount_date_difference = (
+                    same_amount_candidates["date"] - bank_row["date"]
+                ).abs().dt.days.min()
+
                 discrepancy_reason = "Date outside tolerance"
+
+                closest_date_difference = (
+                    closest_same_amount_date_difference
+                )
+
+                closest_amount_difference = 0.0
+
             else:
-                discrepancy_reason = "Possible duplicate or unmatched item"
+                discrepancy_reason = "Possible missing ledger entry"
+
+                closest_date_difference = None
+                closest_amount_difference = None
 
             results.append(
                 {
@@ -111,5 +144,4 @@ def reconcile_transactions(
                     "amount_difference": closest_amount_difference,
                 }
             )
-
     return pd.DataFrame(results)
